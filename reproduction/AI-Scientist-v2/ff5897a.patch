@@ -1,0 +1,106 @@
+commit ff5897a39c6a7f787550a5b206b0675d7b13f9e6
+Author: 何光辉 <hgh54913@heguanghuideMac-mini.local>
+Date:   Fri May 29 07:49:04 2026 +0800
+
+    Tune AI Scientist-v2 repro for low-cost runs
+
+diff --git a/ai_scientist/ideas/mini_mnist_robustness.json b/ai_scientist/ideas/mini_mnist_robustness.json
+new file mode 100644
+index 0000000..5621d8a
+--- /dev/null
++++ b/ai_scientist/ideas/mini_mnist_robustness.json
+@@ -0,0 +1,21 @@
++[
++  {
++    "Name": "mnist_robustness",
++    "Title": "Lightweight Data Augmentation for Robust Digit Classification",
++    "Short Hypothesis": "A small CNN trained with simple augmentation, regularization, and tuned optimizer settings will improve robustness across MNIST, Fashion-MNIST, and KMNIST.",
++    "Related Work": "Prior work shows that data augmentation and regularization often improve generalization, but the effect size can vary across datasets and corruption types. We focus on a minimal, reproducible setup that still tests transfer across multiple HuggingFace datasets such as zalando-datasets/fashion_mnist and tanganke/kmnist.",
++    "Abstract": "We study whether a lightweight regularization recipe can improve the robustness of a small convolutional network on digit-like image datasets. The method combines simple data augmentation, weight decay, dropout, momentum tuning, and early stopping. We evaluate on MNIST plus two additional HuggingFace datasets, zalando-datasets/fashion_mnist and tanganke/kmnist, to compare clean accuracy and robustness under rotation and Gaussian noise shifts. The goal is to produce a small but clear experiment that demonstrates how basic training choices affect robustness across closely related vision benchmarks.",
++    "Experiments": [
++      "Train a small CNN baseline on MNIST with standard preprocessing.",
++      "Add random rotation and affine augmentation, then compare test accuracy on clean and shifted data.",
++      "Tune learning rate, batch size, momentum, dropout, and weight decay on MNIST before transferring the best settings to zalando-datasets/fashion_mnist and tanganke/kmnist.",
++      "Report accuracy, loss curves, and error examples on rotated and noisy test sets for all three datasets.",
++      "Perform a short ablation over augmentation strength, momentum, dropout, and weight decay values."
++    ],
++    "Risk Factors and Limitations": [
++      "The digit datasets are still relatively simple, so gains may be modest.",
++      "The shifted test sets may not fully capture real-world robustness.",
++      "Very small models may underfit if regularization is too strong."
++    ]
++  }
++]
++diff --git a/ai_scientist/ideas/mini_mnist_robustness.md b/ai_scientist/ideas/mini_mnist_robustness.md
+new file mode 100644
+index 0000000..dea4de2
+--- /dev/null
++++ b/ai_scientist/ideas/mini_mnist_robustness.md
+@@ -0,0 +1,33 @@
++## Name
++
++mnist_robustness
++
++## Title
++
++Lightweight Data Augmentation for Robust Digit Classification
++
++## Short Hypothesis
++
++A small CNN trained with simple augmentation, regularization, and tuned optimizer settings will improve robustness across MNIST, Fashion-MNIST, and KMNIST.
++
++## Related Work
++
++Prior work shows that data augmentation and regularization often improve generalization, but the effect size can vary across datasets and corruption types. We focus on a minimal, reproducible setup that still tests transfer across multiple HuggingFace datasets.
++
++## Abstract
++
++We study whether a lightweight regularization recipe can improve the robustness of a small convolutional network on digit-like image datasets. The method combines simple data augmentation, weight decay, dropout, momentum tuning, and early stopping. We evaluate on MNIST plus two additional HuggingFace datasets, Fashion-MNIST and KMNIST, to compare clean accuracy and robustness under rotation and Gaussian noise shifts. The goal is to produce a small but clear experiment that demonstrates how basic training choices affect robustness across closely related vision benchmarks.
++
++## Experiments
++
++- Train a small CNN baseline on MNIST with standard preprocessing.
++- Add random rotation and affine augmentation, then compare test accuracy on clean and shifted data.
++- Tune learning rate, batch size, momentum, dropout, and weight decay on MNIST before transferring the best settings to Fashion-MNIST and KMNIST.
++- Report accuracy, loss curves, and error examples on rotated and noisy test sets for all three datasets.
++- Perform a short ablation over augmentation strength, momentum, dropout, and weight decay values.
++
++## Risk Factors And Limitations
++
++- The digit datasets are still relatively simple, so gains may be modest.
++- The shifted test sets may not fully capture real-world robustness.
++- Very small models may underfit if regularization is too strong.
++diff --git a/ai_scientist/treesearch/agent_manager.py b/ai_scientist/treesearch/agent_manager.py
++index a81a31f..41f4c69 100644
++--- a/ai_scientist/treesearch/agent_manager.py
+++++ b/ai_scientist/treesearch/agent_manager.py
++@@ -158 +158,2 @@ class AgentManager:
++-                - Introduce TWO more new datasets from HuggingFace test the model. Try very hard to think what Huggingface datasets can be used here for testing.""",
+++                - Introduce TWO more new datasets from HuggingFace to test the model. Prefer closely related vision datasets such as Fashion-MNIST and KMNIST if they fit the task.
+++                - Report results on the original dataset plus the two new HuggingFace datasets.""",
++@@ -163 +164 @@ class AgentManager:
++-                - MAKE SURE you use THREE HuggingFace dataset in total to test your models""",
+++                - MAKE SURE you use THREE HuggingFace datasets in total to test your models, and keep the same dataset set from the previous stage""",
++diff --git a/ai_scientist/treesearch/backend/utils.py b/ai_scientist/treesearch/backend/utils.py
++index 60419c7..96158ca 100644
++--- a/ai_scientist/treesearch/backend/utils.py
+++++ b/ai_scientist/treesearch/backend/utils.py
++@@ -29 +29,7 @@ def backoff_create(
++-        logger.info(f"Backoff exception: {e}")
+++        logger.info(f"Backoff exception: {type(e).__name__}: {e}")
+++        try:
+++            import traceback
+++
+++            traceback.print_exc()
+++        except Exception:
+++            pass
++diff --git a/bfts_config.yaml b/bfts_config.yaml
++index 189b45b..8757f0e 100644
++--- a/bfts_config.yaml
+++++ b/bfts_config.yaml
++@@ -57 +57 @@ agent:
++-    model: anthropic.claude-3-5-sonnet-20241022-v2:0
+++    model: gpt-4o-mini
++@@ -59 +59 @@ agent:
++-    max_tokens: 12000
+++    max_tokens: 4096
